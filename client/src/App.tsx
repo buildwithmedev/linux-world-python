@@ -114,7 +114,7 @@ function Navbar() {
             <form onSubmit={handleLookup} className="space-y-4">
               <input
                 required
-                placeholder="Mobile (e.g. 9799375197) or Email"
+                placeholder="Mobile (e.g. 9867692434) or Email"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm focus:border-cyan-500 outline-none"
