@@ -15,7 +15,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import axios from 'axios';
 import { StudentCoursePortal } from './pages/StudentCoursePortal';
 
-const API = axios.create({ baseURL: 'http://127.0.0.1:5000/api' });
+const API = axios.create({ baseURL: 'https://linux-world-python.onrender.com/api' });
 
 // --- 1. NAVBAR COMPONENT ---
 function Navbar() {

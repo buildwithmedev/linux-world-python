@@ -4,7 +4,7 @@ const apiBaseUrl = (import.meta as ImportMeta & {
   env?: {
     VITE_API_URL?: string;
   };
-}).env?.VITE_API_URL || 'http://localhost:5000/api';
+}).env?.VITE_API_URL || 'https://linux-world-python.onrender.com';
 
 const API = axios.create({
   baseURL: apiBaseUrl
