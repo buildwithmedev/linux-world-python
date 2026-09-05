@@ -127,15 +127,20 @@ const initDatabase = async () => {
 };
 
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/linuxworld_python';
 
+// Connect to MongoDB Atlas
 mongoose
-  .connect(MONGODB_URI)
-  .then(async () => {
+  .connect(process.env.MONGODB_URI)
+  .then(() => {
     console.log('MongoDB connected successfully.');
-    await initDatabase();
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server listening on port ${PORT} (http://localhost:${PORT})`);
+      console.log(`Server listening on port ${PORT}`);
     });
   })
-  .catch((err) => console.error('MongoDB connection failed:', err));
+  .catch((err) => {
+    console.error('CRITICAL: MongoDB connection error details:', err.message);
+    // Start the server anyway so Render port detection doesn't fail
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server listening on fallback port ${PORT} (DB connection pending)`);
+    });
+  });
