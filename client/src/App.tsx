@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import axios from 'axios';
-import { StudentCoursePortal } from './pages/StudentCoursePortal';
+import StudentCoursePortal from './pages/StudentCoursePortal';
 
 const API = axios.create({ baseURL: 'https://linux-world-python.onrender.com/api' });
 
