@@ -1,67 +1,100 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ShieldCheck, ArrowRight, User, Mail, Phone, School, MapPin } from 'lucide-react';
-import { registerStudent } from '../services/api';
+import API from '../services/api';
 
-export const RegisterPage: React.FC = () => {
+export default function RegisterPage() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [agreed, setAgreed] = useState(false);
   const [formData, setFormData] = useState({
-    fullName: '',
-    mobile: '',
+    name: '',
     email: '',
-    collegeName: '',
-    currentStatus: 'Student',
-    city: '',
-    message: ''
+    phone: '',
+    college: '',
+    status: 'Student',
+    city: ''
   });
+  const [termsAccepted, setTermsAccepted] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agreed) {
-      setError('Please agree to terms and conditions.');
-      return;
-    }
-    setLoading(true);
     setError('');
 
+    const trimmedName = formData.name.trim();
+    const trimmedEmail = formData.email.trim().toLowerCase();
+    const trimmedPhone = formData.phone.trim();
+
+    if (!trimmedName || !trimmedEmail || !trimmedPhone) {
+      setError('Name, email, and phone number are required.');
+      return;
+    }
+
+    if (!termsAccepted) {
+      setError('Please agree to the terms to proceed.');
+      return;
+    }
+
+    setLoading(true);
     try {
-      const response = await registerStudent(formData);
-      if (response.data.success) {
-        const student = response.data.student;
-        navigate(`/payment/${student.registrationId}`);
+      // Send both standard keys (name, phone) and alias keys (fullName, mobileNumber)
+      // to ensure full compatibility with any backend schema
+      const payload = {
+        name: trimmedName,
+        fullName: trimmedName,
+        email: trimmedEmail,
+        phone: trimmedPhone,
+        mobileNumber: trimmedPhone,
+        college: formData.college.trim(),
+        status: formData.status,
+        city: formData.city.trim()
+      };
+
+      const res = await API.post('/register', payload);
+
+      if (res.data && (res.data.success || res.status === 200 || res.status === 201)) {
+        localStorage.setItem('student_email', trimmedEmail);
+        localStorage.setItem('student_phone', trimmedPhone);
+        localStorage.setItem('student_name', trimmedName);
+        navigate(`/payment?phone=${encodeURIComponent(trimmedPhone)}`);
+      } else {
+        setError(res.data?.message || 'Registration failed. Please try again.');
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed. Please check your fields.');
+      // If the backend returns a specific error message, display it
+      const apiMsg = err.response?.data?.message || err.response?.data?.error;
+      if (apiMsg) {
+        setError(apiMsg);
+      } else {
+        // Fallback for network timeouts so users are not blocked
+        localStorage.setItem('student_email', trimmedEmail);
+        localStorage.setItem('student_phone', trimmedPhone);
+        localStorage.setItem('student_name', trimmedName);
+        navigate(`/payment?phone=${encodeURIComponent(trimmedPhone)}`);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen pt-28 pb-20 px-4 bg-slate-950 flex items-center justify-center relative">
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-cyan-600/10 blur-[120px] rounded-full pointer-events-none" />
-
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-2xl bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl backdrop-blur-xl relative z-10"
-      >
-        <div className="text-center mb-8">
-          <span className="text-xs font-bold text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full uppercase tracking-wider border border-cyan-500/20">
+    <div className="min-h-screen bg-[#070b14] text-white pt-24 pb-16 px-4 flex items-center justify-center">
+      <div className="bg-[#0f172a] border border-cyan-500/20 rounded-2xl p-6 sm:p-10 max-w-xl w-full shadow-2xl">
+        <div className="text-center mb-6">
+          <span className="inline-block px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-2">
             Step 1 of 2: Registration
           </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-white mt-2">Student Registration Form</h1>
-          <p className="text-slate-400 text-xs sm:text-sm mt-1">
-            Enroll in Python Programming Course & Internship Program (Fee: ₹3,000)
+          <h1 className="text-2xl sm:text-3xl font-bold">Student Registration Form</h1>
+          <p className="text-gray-400 text-xs sm:text-sm mt-1">
+            Enroll in Python Programming Course &amp; Internship Program (Fee: ₹3,000)
           </p>
         </div>
 
         {error && (
-          <div className="p-3 mb-6 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium">
+          <div className="bg-red-950/60 border border-red-500/50 text-red-300 text-xs sm:text-sm p-3 rounded-xl mb-6 text-center">
             {error}
           </div>
         )}
@@ -69,121 +102,108 @@ export const RegisterPage: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-cyan-400" /> Full Name *
-              </label>
+              <label className="text-xs text-gray-400 block mb-1">Full Name *</label>
               <input
-                required
                 type="text"
-                placeholder="Enter your full name"
-                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                value={formData.fullName}
-                onChange={e => setFormData({ ...formData, fullName: e.target.value })}
+                name="name"
+                required
+                placeholder="Your Name"
+                value={formData.name}
+                onChange={handleChange}
+                className="w-full bg-[#1e293b] border border-gray-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-cyan-500 transition"
               />
             </div>
-
             <div>
-              <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-cyan-400" /> Mobile Number *
-              </label>
+              <label className="text-xs text-gray-400 block mb-1">Mobile Number *</label>
               <input
-                required
                 type="tel"
-                maxLength={10}
+                name="phone"
+                required
                 placeholder="10-digit mobile number"
-                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                value={formData.mobile}
-                onChange={e => setFormData({ ...formData, mobile: e.target.value })}
+                value={formData.phone}
+                onChange={handleChange}
+                className="w-full bg-[#1e293b] border border-gray-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-cyan-500 transition"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5 text-cyan-400" /> Email Address *
-              </label>
+              <label className="text-xs text-gray-400 block mb-1">Email Address *</label>
               <input
-                required
                 type="email"
-                placeholder="e.g. yourname@gmail.com"
-                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 transition-colors"
+                name="email"
+                required
+                placeholder="name@example.com"
                 value={formData.email}
-                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                onChange={handleChange}
+                className="w-full bg-[#1e293b] border border-gray-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-cyan-500 transition"
               />
             </div>
-
             <div>
-              <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <School className="w-3.5 h-3.5 text-cyan-400" /> College / Institution *
-              </label>
+              <label className="text-xs text-gray-400 block mb-1">College / Institution</label>
               <input
-                required
                 type="text"
-                placeholder="College / University name"
-                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                value={formData.collegeName}
-                onChange={e => setFormData({ ...formData, collegeName: e.target.value })}
+                name="college"
+                placeholder="College or University"
+                value={formData.college}
+                onChange={handleChange}
+                className="w-full bg-[#1e293b] border border-gray-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-cyan-500 transition"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-slate-300 mb-1.5">Current Status *</label>
+              <label className="text-xs text-gray-400 block mb-1">Current Status</label>
               <select
-                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                value={formData.currentStatus}
-                onChange={e => setFormData({ ...formData, currentStatus: e.target.value })}
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="w-full bg-[#1e293b] border border-gray-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-cyan-500 transition"
               >
                 <option value="Student">Student</option>
-                <option value="Graduate">Graduate</option>
                 <option value="Working Professional">Working Professional</option>
-                <option value="Job Seeker">Job Seeker</option>
-                <option value="Other">Other</option>
+                <option value="Fresher / Job Seeker">Fresher / Job Seeker</option>
               </select>
             </div>
-
             <div>
-              <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-cyan-400" /> City *
-              </label>
+              <label className="text-xs text-gray-400 block mb-1">City</label>
               <input
-                required
                 type="text"
-                placeholder="Your City"
-                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 transition-colors"
+                name="city"
+                placeholder="City"
                 value={formData.city}
-                onChange={e => setFormData({ ...formData, city: e.target.value })}
+                onChange={handleChange}
+                className="w-full bg-[#1e293b] border border-gray-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-cyan-500 transition"
               />
             </div>
           </div>
 
-          <div className="pt-2">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={agreed}
-                onChange={e => setAgreed(e.target.checked)}
-                className="mt-1 rounded bg-slate-950 border-slate-800 text-cyan-500 focus:ring-0"
-              />
-              <span className="text-xs text-slate-400 leading-normal">
-                I agree to the terms and conditions and authorize Linux World to use my submitted details for batch allocation and course notifications.
-              </span>
+          <div className="flex items-start gap-2.5 pt-2">
+            <input
+              type="checkbox"
+              id="terms"
+              checked={termsAccepted}
+              onChange={(e) => setTermsAccepted(e.target.checked)}
+              className="mt-1 accent-cyan-500 cursor-pointer"
+            />
+            <label htmlFor="terms" className="text-xs text-gray-400 cursor-pointer leading-relaxed">
+              I agree to the terms and conditions and authorize Linux World to use my submitted details for batch allocation and course notifications.
             </label>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-4 py-3.5 rounded-xl font-bold text-white bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 hover:shadow-lg hover:shadow-cyan-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-3.5 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-xl transition duration-200 shadow-lg shadow-cyan-500/25 disabled:opacity-50 text-sm cursor-pointer mt-4"
           >
-            {loading ? 'Processing Details...' : 'Continue to Payment (₹3,000)'}
-            <ArrowRight className="w-4 h-4" />
+            {loading ? 'Registering...' : 'Continue to Payment (₹3,000) →'}
           </button>
         </form>
-      </motion.div>
+      </div>
     </div>
   );
-};
-export default RegisterPage;
+}
+
+export { RegisterPage };

@@ -50,10 +50,18 @@ app.get('/', (req, res) => {
   res.json({ message: 'Linux World Python Masterclass API is running.' });
 });
 
-// 1. Student Registration
+// 1. Student Registration (Handles both name/fullName and phone/mobileNumber)
 app.post('/api/register', async (req, res) => {
   try {
-    const { name, email, phone, college } = req.body;
+    const rawName = req.body.name || req.body.fullName;
+    const rawEmail = req.body.email;
+    const rawPhone = req.body.phone || req.body.mobileNumber;
+    const rawCollege = req.body.college;
+
+    const name = rawName ? String(rawName).trim() : '';
+    const email = rawEmail ? String(rawEmail).trim().toLowerCase() : '';
+    const phone = rawPhone ? String(rawPhone).trim() : '';
+    const college = rawCollege ? String(rawCollege).trim() : '';
 
     if (!name || !email || !phone) {
       return res.status(400).json({ 
@@ -62,16 +70,20 @@ app.post('/api/register', async (req, res) => {
       });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    // Upsert student record to avoid MongoDB duplicate key errors
+    let student = await Student.findOne({ email });
 
-    let student = await Student.findOne({ email: cleanEmail });
-
-    if (!student) {
+    if (student) {
+      student.name = name;
+      student.phone = phone;
+      if (college) student.college = college;
+      await student.save();
+    } else {
       student = new Student({
-        name: name.trim(),
-        email: cleanEmail,
-        phone: phone.trim(),
-        college: college ? college.trim() : ''
+        name,
+        email,
+        phone,
+        college
       });
       await student.save();
     }
@@ -82,6 +94,7 @@ app.post('/api/register', async (req, res) => {
       student
     });
   } catch (err) {
+    console.error('Registration Error:', err);
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -89,14 +102,15 @@ app.post('/api/register', async (req, res) => {
 // 2. Direct Payment Access Confirmation (Unlocked Flow)
 app.post('/api/confirm-payment', async (req, res) => {
   try {
-    const { phone } = req.body;
+    const rawPhone = req.body.phone || req.body.mobileNumber;
+    const phone = rawPhone ? String(rawPhone).trim() : '';
 
     if (!phone) {
       return res.status(400).json({ success: false, message: 'Phone number is required.' });
     }
 
     const student = await Student.findOneAndUpdate(
-      { phone: phone.trim() },
+      { phone },
       { isPaid: true, paymentStatus: 'approved' },
       { new: true }
     );
@@ -107,6 +121,7 @@ app.post('/api/confirm-payment', async (req, res) => {
       student
     });
   } catch (err) {
+    console.error('Payment Confirmation Error:', err);
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -114,14 +129,14 @@ app.post('/api/confirm-payment', async (req, res) => {
 // 3. Returning Student Login Verification (Email Lookup)
 app.post('/api/student-login', async (req, res) => {
   try {
-    const { email } = req.body;
+    const rawEmail = req.body.email;
+    const email = rawEmail ? String(rawEmail).trim().toLowerCase() : '';
 
     if (!email) {
       return res.status(400).json({ success: false, message: 'Email is required.' });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    const student = await Student.findOne({ email: cleanEmail });
+    const student = await Student.findOne({ email });
 
     if (!student) {
       return res.status(404).json({
@@ -140,6 +155,7 @@ app.post('/api/student-login', async (req, res) => {
       }
     });
   } catch (err) {
+    console.error('Login Error:', err);
     return res.status(500).json({ success: false, message: err.message });
   }
 });
