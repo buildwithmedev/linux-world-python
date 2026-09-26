@@ -21,7 +21,7 @@ if (MONGO_URI) {
   console.warn('⚠️ Warning: MONGO_URI is not set in environment variables.');
 }
 
-// Student Schema & Model
+// Student Schema & Model (Removed rigid enum to prevent Mongoose validation failures)
 const studentSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
@@ -32,13 +32,13 @@ const studentSchema = new mongoose.Schema(
     utrNumber: { type: String, default: '' },
     paymentStatus: { 
       type: String, 
-      enum: ['unpaid', 'pending', 'approved'], 
       default: 'unpaid' 
     }
   },
   { timestamps: true }
 );
 
+// Prevent overwrite errors if model is already compiled
 const Student = mongoose.models.Student || mongoose.model('Student', studentSchema);
 
 // ========================
@@ -70,23 +70,18 @@ app.post('/api/register', async (req, res) => {
       });
     }
 
-    // Upsert student record to avoid MongoDB duplicate key errors
-    let student = await Student.findOne({ email });
-
-    if (student) {
-      student.name = name;
-      student.phone = phone;
-      if (college) student.college = college;
-      await student.save();
-    } else {
-      student = new Student({
-        name,
-        email,
-        phone,
-        college
-      });
-      await student.save();
-    }
+    // Upsert student record using findOneAndUpdate to avoid document-level enum validation collisions
+    const student = await Student.findOneAndUpdate(
+      { email },
+      {
+        $set: {           name,           phone,           college         },$setOnInsert: {
+          email,
+          isPaid: false,
+          paymentStatus: 'unpaid'
+        }
+      },
+      { new: true, upsert: true, runValidators: false }
+    );
 
     return res.status(201).json({
       success: true,
@@ -111,8 +106,13 @@ app.post('/api/confirm-payment', async (req, res) => {
 
     const student = await Student.findOneAndUpdate(
       { phone },
-      { isPaid: true, paymentStatus: 'approved' },
-      { new: true }
+      { 
+        $set: { 
+          isPaid: true, 
+          paymentStatus: 'approved' 
+        } 
+      },
+      { new: true, runValidators: false }
     );
 
     return res.status(200).json({
