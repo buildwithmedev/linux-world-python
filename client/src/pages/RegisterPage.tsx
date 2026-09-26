@@ -40,8 +40,6 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      // Send both standard keys (name, phone) and alias keys (fullName, mobileNumber)
-      // to ensure full compatibility with any backend schema
       const payload = {
         name: trimmedName,
         fullName: trimmedName,
@@ -64,12 +62,10 @@ export default function RegisterPage() {
         setError(res.data?.message || 'Registration failed. Please try again.');
       }
     } catch (err: any) {
-      // If the backend returns a specific error message, display it
       const apiMsg = err.response?.data?.message || err.response?.data?.error;
       if (apiMsg) {
         setError(apiMsg);
       } else {
-        // Fallback for network timeouts so users are not blocked
         localStorage.setItem('student_email', trimmedEmail);
         localStorage.setItem('student_phone', trimmedPhone);
         localStorage.setItem('student_name', trimmedName);
@@ -89,7 +85,7 @@ export default function RegisterPage() {
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold">Student Registration Form</h1>
           <p className="text-gray-400 text-xs sm:text-sm mt-1">
-            Enroll in Python Programming Course &amp; Internship Program (Fee: ₹3,000)
+            Enroll in Python Programming Course &amp; Internship Program (Fee: ₹300)
           </p>
         </div>
 
@@ -198,7 +194,7 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full py-3.5 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-xl transition duration-200 shadow-lg shadow-cyan-500/25 disabled:opacity-50 text-sm cursor-pointer mt-4"
           >
-            {loading ? 'Registering...' : 'Continue to Payment (₹3,000) →'}
+            {loading ? 'Registering...' : 'Continue to Payment (₹300) →'}
           </button>
         </form>
       </div>
